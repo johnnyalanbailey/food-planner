@@ -1,6 +1,9 @@
 const STORAGE_KEY = "weekly-food-planner-v1";
+const SUPABASE_SETTINGS_KEY = "weekly-food-planner-supabase";
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const MEAL_KEYS = ["breakfast", "lunch", "tea"];
+let supabaseClient = null;
+let syncState = { message: "Not connected yet.", ok: false };
 
 function getWeekDates() {
   const today = new Date();
@@ -108,6 +111,121 @@ function hasMeals(dayPlan) {
       return course && course.name && course.name.trim() !== "";
     });
   });
+}
+
+function hasAnyPlanData(plan) {
+  return DAYS.some((day) => {
+    const dayPlan = plan[day];
+    return MEAL_KEYS.some((mealKey) => {
+      const meal = dayPlan?.[mealKey];
+      const hasMain = meal?.main?.name && meal.main.name.trim() !== "";
+      const hasOptional = ["starter", "dessert"].some((courseKey) => meal?.[courseKey]?.name && meal[courseKey].name.trim() !== "");
+      const hasIngredients = Boolean(meal?.ingredientsEnabled && meal.ingredients && meal.ingredients.trim() !== "");
+      return hasMain || hasOptional || hasIngredients;
+    });
+  });
+}
+
+function updateSyncStatus(message, ok = true) {
+  syncState = { message, ok };
+  const statusEl = document.getElementById("syncStatus");
+  if (statusEl) {
+    statusEl.textContent = message;
+    statusEl.style.color = ok ? "#2e7d32" : "#c62828";
+  }
+}
+
+function loadSupabaseSettings() {
+  try {
+    const saved = localStorage.getItem(SUPABASE_SETTINGS_KEY);
+    if (!saved) return { url: "", key: "" };
+    return JSON.parse(saved);
+  } catch (error) {
+    return { url: "", key: "" };
+  }
+}
+
+function saveSupabaseSettings(settings) {
+  localStorage.setItem(SUPABASE_SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function populateSupabaseSettings() {
+  const settings = loadSupabaseSettings();
+  const urlInput = document.getElementById("supabaseUrl");
+  const keyInput = document.getElementById("supabaseKey");
+  if (urlInput) urlInput.value = settings.url || "";
+  if (keyInput) keyInput.value = settings.key || "";
+}
+
+function initializeSupabaseClient() {
+  const settings = loadSupabaseSettings();
+  if (!settings.url || !settings.key || !window.supabase) {
+    updateSyncStatus("Supabase not configured yet.", false);
+    return null;
+  }
+
+  supabaseClient = window.supabase.createClient(settings.url, settings.key);
+  return supabaseClient;
+}
+
+async function loadRemotePlan() {
+  const client = initializeSupabaseClient();
+  if (!client) return null;
+
+  const { data, error } = await client.from("planner_data").select("data").eq("id", "shared").maybeSingle();
+  if (error) {
+    if (error.code === "PGRST116") {
+      return null;
+    }
+    throw error;
+  }
+
+  return data?.data || null;
+}
+
+async function syncToSupabase() {
+  const client = initializeSupabaseClient();
+  if (!client) return;
+
+  try {
+    const { error } = await client.from("planner_data").upsert({ id: "shared", data: state, updated_at: new Date().toISOString() }, { onConflict: "id" });
+    if (error) throw error;
+    updateSyncStatus("Synced to Supabase.", true);
+  } catch (error) {
+    console.warn("Could not sync to Supabase", error);
+    updateSyncStatus("Sync failed. Check your Supabase table and keys.", false);
+  }
+}
+
+async function connectSupabase() {
+  const url = document.getElementById("supabaseUrl")?.value?.trim() || "";
+  const key = document.getElementById("supabaseKey")?.value?.trim() || "";
+  saveSupabaseSettings({ url, key });
+
+  if (!url || !key) {
+    updateSyncStatus("Add both your Supabase URL and anon key first.", false);
+    return;
+  }
+
+  updateSyncStatus("Connecting to Supabase...", true);
+  const client = initializeSupabaseClient();
+  if (!client) return;
+
+  try {
+    const remotePlan = await loadRemotePlan();
+    if (remotePlan && !hasAnyPlanData(state)) {
+      state = remotePlan;
+      savePlan(state);
+      renderApp();
+      updateSyncStatus("Loaded the shared plan from Supabase.", true);
+      return;
+    }
+
+    await syncToSupabase();
+  } catch (error) {
+    console.warn("Could not connect to Supabase", error);
+    updateSyncStatus("Connection failed. Check URL, key and the planner_data table.", false);
+  }
 }
 
 function getDaySummary(dayPlan) {
@@ -289,6 +407,7 @@ function saveCurrentDay() {
 
   savePlan(state);
   renderApp();
+  syncToSupabase();
 }
 
 function handleEditorInput(event) {
@@ -330,12 +449,14 @@ function clearDay() {
   };
   savePlan(state);
   renderApp();
+  syncToSupabase();
 }
 
 function clearWeek() {
   state = createEmptyPlan();
   savePlan(state);
   renderApp();
+  syncToSupabase();
 }
 
 function attachEvents() {
@@ -346,6 +467,12 @@ function attachEvents() {
 
   document.getElementById("clearDayButton").addEventListener("click", clearDay);
   document.getElementById("clearWeekButton").addEventListener("click", clearWeek);
+  document.getElementById("connectSupabaseButton").addEventListener("click", connectSupabase);
+  document.getElementById("syncNowButton").addEventListener("click", () => {
+    savePlan(state);
+    syncToSupabase();
+    renderApp();
+  });
 
   document.getElementById("overview").addEventListener("click", (event) => {
     const dayCard = event.target.closest(".day-card");
@@ -401,6 +528,7 @@ function attachEvents() {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+  populateSupabaseSettings();
   attachEvents();
   renderApp();
 });

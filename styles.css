@@ -87,7 +87,8 @@ h1 {
 
 .overview-card,
 .editor-card,
-.shopping-card {
+.shopping-card,
+.sync-card {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 20px;
@@ -279,6 +280,30 @@ textarea {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.sync-actions {
+  margin-top: 10px;
+}
+
+.field-label {
+  display: block;
+  margin-top: 10px;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: var(--green);
+}
+
+.sync-status {
+  margin-top: 10px;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.helper-text {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .primary-button,

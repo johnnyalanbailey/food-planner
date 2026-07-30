@@ -40,6 +40,23 @@
           <div id="shoppingList" class="shopping-list"></div>
         </section>
 
+        <section class="sync-card">
+          <div class="section-heading">
+            <h2>Cloud sync</h2>
+            <p>Optional Supabase sync for sharing your weekly plan across devices.</p>
+          </div>
+          <label class="field-label" for="supabaseUrl">Supabase URL</label>
+          <input id="supabaseUrl" type="text" placeholder="https://xxxxx.supabase.co" />
+          <label class="field-label" for="supabaseKey">Supabase anon key</label>
+          <input id="supabaseKey" type="password" placeholder="Paste your anon key" />
+          <div class="editor-actions sync-actions">
+            <button type="button" id="connectSupabaseButton" class="primary-button">Connect & sync</button>
+            <button type="button" id="syncNowButton" class="secondary-button">Sync now</button>
+          </div>
+          <p id="syncStatus" class="sync-status">Not connected yet.</p>
+          <p class="helper-text">Create a table called planner_data with columns: id text primary key, data jsonb, updated_at timestamptz default now(). If RLS is enabled, allow the anon role to read/write that table.</p>
+        </section>
+
         <section class="editor-card">
           <div class="section-heading">
             <h2 id="editorTitle">Monday</h2>
@@ -159,6 +176,7 @@
       </main>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js"></script>
   </body>
 </html>
