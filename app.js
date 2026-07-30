@@ -105,24 +105,30 @@ function normalizeMeal(meal) {
   };
 }
 
+function normalizePlanStructure(candidatePlan) {
+  const plan = createEmptyPlan();
+  if (!candidatePlan || typeof candidatePlan !== "object") {
+    return plan;
+  }
+
+  DAYS.forEach((day) => {
+    const sourceDay = candidatePlan[day] || {};
+    plan[day] = {
+      breakfast: normalizeMeal(sourceDay.breakfast),
+      lunch: normalizeMeal(sourceDay.lunch),
+      tea: normalizeMeal(sourceDay.tea)
+    };
+  });
+
+  return plan;
+}
+
 function loadPlan() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return createEmptyPlan();
-
     const parsed = JSON.parse(saved);
-    const plan = createEmptyPlan();
-
-    DAYS.forEach((day) => {
-      const sourceDay = parsed[day] || {};
-      plan[day] = {
-        breakfast: normalizeMeal(sourceDay.breakfast),
-        lunch: normalizeMeal(sourceDay.lunch),
-        tea: normalizeMeal(sourceDay.tea)
-      };
-    });
-
-    return plan;
+    return normalizePlanStructure(parsed);
   } catch (error) {
     console.warn("Could not load planner data", error);
     return createEmptyPlan();
@@ -268,8 +274,8 @@ async function connectSupabase() {
 
   try {
     const remotePlan = await loadRemotePlan();
-    if (remotePlan && !hasAnyPlanData(state)) {
-      state = remotePlan;
+    if (remotePlan) {
+      state = normalizePlanStructure(remotePlan);
       savePlan(state);
       renderApp();
       updateSyncStatus("Loaded the shared plan from Supabase.", true);
