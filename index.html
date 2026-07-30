@@ -18,7 +18,7 @@
         <div>
           <p class="eyebrow">Weekly planner</p>
           <h1>Food Planner</h1>
-          <p class="subtitle">Plan breakfast, lunch and tea for the week in one place.</p>
+          <p class="subtitle">Plan breakfast, lunch, tea and snacks for the week in one place.</p>
         </div>
         <div class="install-note">Add this to your Home Screen on iPhone for a quick app-like experience.</div>
       </header>
@@ -63,7 +63,7 @@
         <section class="editor-card">
           <div class="section-heading">
             <h2 id="editorTitle">Monday</h2>
-            <p>Choose a day and add a main, starter or dessert for breakfast, lunch and tea.</p>
+            <p>Choose a day and add meals for breakfast, lunch and tea, or add snacks that go straight to your ingredients list.</p>
           </div>
 
           <form id="plannerForm" class="planner-form">
@@ -179,6 +179,12 @@
                 <input id="teaDessertName" data-meal="tea" data-course="dessert" data-field="name" type="text" placeholder="Dessert" />
                 <textarea id="teaDessertNotes" data-meal="tea" data-course="dessert" data-field="notes" rows="2" placeholder="Notes"></textarea>
               </div>
+            </div>
+
+            <div class="meal-block snacks-block">
+              <label class="meal-label" for="snacksItems">Snacks</label>
+              <p class="helper-text">Add snacks here and they’ll appear directly in your ingredients list.</p>
+              <textarea id="snacksItems" data-field="snacks" rows="4" placeholder="Add snacks, one per line"></textarea>
             </div>
 
             <div class="editor-actions">

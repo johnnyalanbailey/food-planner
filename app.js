@@ -4,6 +4,7 @@ const LEGACY_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Sa
 const WINDOW_DAYS = 7;
 const PLAN_META_KEY = "__meta";
 const MEAL_KEYS = ["breakfast", "lunch", "tea"];
+const SNACKS_KEY = "snacks";
 let supabaseClient = null;
 let supabaseClientConfig = null;
 let syncState = { message: "Not connected yet.", ok: false };
@@ -153,11 +154,16 @@ function createMealEntry() {
   };
 }
 
+function createSnacksEntry(items = "") {
+  return { items };
+}
+
 function createDayPlan() {
   return {
     breakfast: createMealEntry(),
     lunch: createMealEntry(),
-    tea: createMealEntry()
+    tea: createMealEntry(),
+    [SNACKS_KEY]: createSnacksEntry()
   };
 }
 
@@ -189,6 +195,13 @@ function normalizeMeal(meal) {
     ingredientsEnabled: false,
     ingredients: ""
   };
+}
+
+function normalizeSnacks(candidateSnacks) {
+  if (!candidateSnacks) return createSnacksEntry();
+  if (typeof candidateSnacks === "string") return createSnacksEntry(candidateSnacks);
+  if (typeof candidateSnacks === "object") return createSnacksEntry(candidateSnacks.items || "");
+  return createSnacksEntry();
 }
 
 function normalizePlanStructure(candidatePlan) {
@@ -229,7 +242,8 @@ function normalizePlanStructure(candidatePlan) {
     plan[normalizedDayKey] = {
       breakfast: normalizeMeal(sourceDay.breakfast),
       lunch: normalizeMeal(sourceDay.lunch),
-      tea: normalizeMeal(sourceDay.tea)
+      tea: normalizeMeal(sourceDay.tea),
+      [SNACKS_KEY]: normalizeSnacks(sourceDay[SNACKS_KEY])
     };
   });
 
@@ -286,7 +300,8 @@ function hasAnyPlanData(plan) {
       const hasMain = meal?.main?.name && meal.main.name.trim() !== "";
       const hasOptional = ["starter", "dessert"].some((courseKey) => meal?.[courseKey]?.name && meal[courseKey].name.trim() !== "");
       const hasIngredients = Boolean(meal?.ingredientsEnabled && meal.ingredients && meal.ingredients.trim() !== "");
-      return hasMain || hasOptional || hasIngredients || Boolean(meal?.eatingOut);
+      const hasSnacks = Boolean(dayPlan?.[SNACKS_KEY]?.items && getIngredientLines(dayPlan[SNACKS_KEY].items).length);
+      return hasMain || hasOptional || hasIngredients || hasSnacks || Boolean(meal?.eatingOut);
     });
   });
 }
@@ -446,6 +461,15 @@ function getDaySummary(dayPlan) {
     }
   });
 
+  const snackItems = (dayPlan?.[SNACKS_KEY]?.items || "")
+    .split(/\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (snackItems.length) {
+    plannedMeals.push(`snacks: ${snackItems.join(" • ")}`);
+  }
+
   return plannedMeals.length ? plannedMeals.join(" • ") : "No meals yet";
 }
 
@@ -478,6 +502,11 @@ function populateEditor(day, plan) {
     }
   });
 
+  const snacksInput = document.getElementById("snacksItems");
+  if (snacksInput) {
+    snacksInput.value = plan[SNACKS_KEY]?.items || "";
+  }
+
   if (plan.tea) {
     OPTIONAL_TEA_COURSES.forEach((courseKey) => {
       const block = document.getElementById(`tea${courseKey.charAt(0).toUpperCase() + courseKey.slice(1)}Block`);
@@ -499,6 +528,13 @@ function populateEditor(day, plan) {
   }
 }
 
+function getIngredientLines(rawValue) {
+  return (rawValue || "")
+    .split(/\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function getShoppingList(plan) {
   const sections = [];
 
@@ -508,16 +544,18 @@ function getShoppingList(plan) {
       const meal = dayPlan?.[mealKey];
       if (!meal?.ingredientsEnabled) return;
 
-      const ingredientLines = (meal.ingredients || "")
-        .split(/\n|,/)
-        .map((item) => item.trim())
-        .filter(Boolean);
+      const ingredientLines = getIngredientLines(meal.ingredients || "");
 
       if (!ingredientLines.length) return;
 
       const title = `${getDisplayDayLabel(day)} - ${mealKey.charAt(0).toUpperCase() + mealKey.slice(1)}`;
       sections.push({ title, items: ingredientLines });
     });
+
+    const snackItems = getIngredientLines(dayPlan?.[SNACKS_KEY]?.items || "");
+    if (snackItems.length) {
+      sections.push({ title: `${getDisplayDayLabel(day)} - Snacks`, items: snackItems });
+    }
   });
 
   if (!sections.length) {
@@ -587,6 +625,8 @@ function renderApp() {
 function saveCurrentDay() {
   const dayPlan = state[selectedDay];
 
+  dayPlan[SNACKS_KEY] = createSnacksEntry(document.getElementById("snacksItems")?.value || "");
+
   MEAL_KEYS.forEach((mealKey) => {
     dayPlan[mealKey] = createMealEntry();
 
@@ -620,12 +660,21 @@ function saveCurrentDay() {
 }
 
 function handleEditorInput(event) {
+  const field = event.target.dataset.field;
+
+  if (field === "snacks") {
+    state[selectedDay][SNACKS_KEY] = createSnacksEntry(event.target.value);
+    savePlan(state);
+    renderOverview(state, selectedDay);
+    renderShoppingList();
+    return;
+  }
+
   const mealBlock = event.target.closest(".meal-block");
   if (!mealBlock) return;
 
   const mealKey = mealBlock.dataset.meal;
   const courseKey = event.target.dataset.course;
-  const field = event.target.dataset.field;
   const currentMeal = state[selectedDay][mealKey];
 
   if ((field === "name" || field === "notes") && !currentMeal[courseKey]) {
