@@ -3,7 +3,37 @@ const SUPABASE_SETTINGS_KEY = "weekly-food-planner-supabase";
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const MEAL_KEYS = ["breakfast", "lunch", "tea"];
 let supabaseClient = null;
+let supabaseClientConfig = null;
 let syncState = { message: "Not connected yet.", ok: false };
+
+function sanitizeSupabaseUrl(rawValue) {
+  if (!rawValue) return "";
+
+  let value = rawValue.trim();
+  const lower = value.toLowerCase();
+  const httpsStart = lower.indexOf("https://");
+  const httpStart = lower.indexOf("http://");
+  const startCandidates = [httpsStart, httpStart].filter((index) => index >= 0);
+
+  if (startCandidates.length && Math.min(...startCandidates) > 0) {
+    value = value.slice(Math.min(...startCandidates));
+  }
+
+  const normalizedLower = value.toLowerCase();
+  const nextHttps = normalizedLower.indexOf("https://", 8);
+  const nextHttp = normalizedLower.indexOf("http://", 7);
+  const nextCandidates = [nextHttps, nextHttp].filter((index) => index > 0);
+  if (nextCandidates.length) {
+    value = value.slice(0, Math.min(...nextCandidates));
+  }
+
+  try {
+    const parsed = new URL(value);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch (error) {
+    return "";
+  }
+}
 
 function getWeekDates() {
   const today = new Date();
@@ -139,14 +169,22 @@ function loadSupabaseSettings() {
   try {
     const saved = localStorage.getItem(SUPABASE_SETTINGS_KEY);
     if (!saved) return { url: "", key: "" };
-    return JSON.parse(saved);
+    const parsed = JSON.parse(saved);
+    return {
+      url: sanitizeSupabaseUrl(parsed.url || ""),
+      key: parsed.key || ""
+    };
   } catch (error) {
     return { url: "", key: "" };
   }
 }
 
 function saveSupabaseSettings(settings) {
-  localStorage.setItem(SUPABASE_SETTINGS_KEY, JSON.stringify(settings));
+  const normalized = {
+    url: sanitizeSupabaseUrl(settings.url || ""),
+    key: settings.key || ""
+  };
+  localStorage.setItem(SUPABASE_SETTINGS_KEY, JSON.stringify(normalized));
 }
 
 function populateSupabaseSettings() {
@@ -164,7 +202,17 @@ function initializeSupabaseClient() {
     return null;
   }
 
+  if (
+    supabaseClient &&
+    supabaseClientConfig &&
+    supabaseClientConfig.url === settings.url &&
+    supabaseClientConfig.key === settings.key
+  ) {
+    return supabaseClient;
+  }
+
   supabaseClient = window.supabase.createClient(settings.url, settings.key);
+  supabaseClientConfig = { ...settings };
   return supabaseClient;
 }
 
@@ -198,12 +246,19 @@ async function syncToSupabase() {
 }
 
 async function connectSupabase() {
-  const url = document.getElementById("supabaseUrl")?.value?.trim() || "";
+  const rawUrl = document.getElementById("supabaseUrl")?.value || "";
+  const url = sanitizeSupabaseUrl(rawUrl);
   const key = document.getElementById("supabaseKey")?.value?.trim() || "";
+
+  const urlInput = document.getElementById("supabaseUrl");
+  if (urlInput && url) {
+    urlInput.value = url;
+  }
+
   saveSupabaseSettings({ url, key });
 
   if (!url || !key) {
-    updateSyncStatus("Add both your Supabase URL and anon key first.", false);
+    updateSyncStatus("Add a valid Supabase URL and anon key first.", false);
     return;
   }
 
