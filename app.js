@@ -1,6 +1,8 @@
 const STORAGE_KEY = "weekly-food-planner-v1";
 const SUPABASE_SETTINGS_KEY = "weekly-food-planner-supabase";
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const LEGACY_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const WINDOW_DAYS = 7;
+const PLAN_META_KEY = "__meta";
 const MEAL_KEYS = ["breakfast", "lunch", "tea"];
 let supabaseClient = null;
 let supabaseClientConfig = null;
@@ -35,23 +37,102 @@ function sanitizeSupabaseUrl(rawValue) {
   }
 }
 
-function getWeekDates() {
+function getStartOfToday() {
   const today = new Date();
-  const dayOfWeek = today.getDay();
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() + mondayOffset);
-  startOfWeek.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
 
-  return DAYS.map((_, index) => {
-    const date = new Date(startOfWeek);
-    date.setDate(startOfWeek.getDate() + index);
-    return date;
+function toDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function fromDateKey(dateKey) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return null;
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setHours(0, 0, 0, 0);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getConsecutiveDateKeys(count, startDate = getStartOfToday()) {
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + index);
+    return toDateKey(date);
   });
 }
 
-function formatDayLabel(day, date) {
-  return `${day} ${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`;
+function formatDateLabel(date) {
+  return `${date.toLocaleDateString("en-GB", { weekday: "long" })} ${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`;
+}
+
+function getDisplayDayLabel(dayKey) {
+  const dayDate = fromDateKey(dayKey);
+  return dayDate ? formatDateLabel(dayDate) : dayKey;
+}
+
+function getPlanMeta(plan) {
+  const meta = plan?.[PLAN_META_KEY];
+  if (!meta || typeof meta !== "object") {
+    return { extraDays: 0 };
+  }
+
+  return {
+    extraDays: Number.isInteger(meta.extraDays) && meta.extraDays >= 0 ? meta.extraDays : 0
+  };
+}
+
+function setPlanMeta(plan, meta) {
+  plan[PLAN_META_KEY] = {
+    extraDays: Number.isInteger(meta.extraDays) && meta.extraDays >= 0 ? meta.extraDays : 0
+  };
+}
+
+function getExtraDays(plan) {
+  return getPlanMeta(plan).extraDays;
+}
+
+function setExtraDays(plan, extraDays) {
+  setPlanMeta(plan, { extraDays });
+}
+
+function getVisibleDayKeys(plan) {
+  const totalDays = WINDOW_DAYS + getExtraDays(plan);
+  return getConsecutiveDateKeys(totalDays);
+}
+
+function getDataDayKeys(plan) {
+  return Object.keys(plan || {}).filter((key) => key !== PLAN_META_KEY && fromDateKey(key));
+}
+
+function ensureVisibleDayPlans(plan) {
+  getVisibleDayKeys(plan).forEach((dayKey) => {
+    if (!plan[dayKey]) {
+      plan[dayKey] = createDayPlan();
+    }
+  });
+}
+
+function prunePlanToVisibleDays(plan) {
+  const visibleKeys = new Set(getVisibleDayKeys(plan));
+  getDataDayKeys(plan).forEach((dayKey) => {
+    if (!visibleKeys.has(dayKey)) {
+      delete plan[dayKey];
+    }
+  });
+}
+
+function getLegacyWeekStart() {
+  const today = getStartOfToday();
+  const dayOfWeek = today.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + mondayOffset);
+  return monday;
 }
 const COURSE_KEYS = ["main", "starter", "dessert"];
 const OPTIONAL_TEA_COURSES = ["starter", "dessert"];
@@ -71,15 +152,17 @@ function createMealEntry() {
   };
 }
 
+function createDayPlan() {
+  return {
+    breakfast: createMealEntry(),
+    lunch: createMealEntry(),
+    tea: createMealEntry()
+  };
+}
+
 function createEmptyPlan() {
-  const plan = {};
-  DAYS.forEach((day) => {
-    plan[day] = {
-      breakfast: createMealEntry(),
-      lunch: createMealEntry(),
-      tea: createMealEntry()
-    };
-  });
+  const plan = { [PLAN_META_KEY]: { extraDays: 0 } };
+  ensureVisibleDayPlans(plan);
   return plan;
 }
 
@@ -111,14 +194,44 @@ function normalizePlanStructure(candidatePlan) {
     return plan;
   }
 
-  DAYS.forEach((day) => {
-    const sourceDay = candidatePlan[day] || {};
-    plan[day] = {
+  const candidateMeta = candidatePlan[PLAN_META_KEY];
+  if (candidateMeta && typeof candidateMeta === "object") {
+    setExtraDays(plan, candidateMeta.extraDays);
+  }
+
+  const legacyWeekStart = getLegacyWeekStart();
+  const legacyDayToDateKey = {};
+  LEGACY_DAYS.forEach((dayName, index) => {
+    const date = new Date(legacyWeekStart);
+    date.setDate(legacyWeekStart.getDate() + index);
+    legacyDayToDateKey[dayName] = toDateKey(date);
+  });
+
+  Object.entries(candidatePlan).forEach(([dayKey, sourceDay]) => {
+    if (dayKey === PLAN_META_KEY || !sourceDay || typeof sourceDay !== "object") {
+      return;
+    }
+
+    let normalizedDayKey = null;
+    if (fromDateKey(dayKey)) {
+      normalizedDayKey = dayKey;
+    } else if (legacyDayToDateKey[dayKey]) {
+      normalizedDayKey = legacyDayToDateKey[dayKey];
+    }
+
+    if (!normalizedDayKey) {
+      return;
+    }
+
+    plan[normalizedDayKey] = {
       breakfast: normalizeMeal(sourceDay.breakfast),
       lunch: normalizeMeal(sourceDay.lunch),
       tea: normalizeMeal(sourceDay.tea)
     };
   });
+
+  ensureVisibleDayPlans(plan);
+  prunePlanToVisibleDays(plan);
 
   return plan;
 }
@@ -136,6 +249,8 @@ function loadPlan() {
 }
 
 function savePlan(plan) {
+  ensureVisibleDayPlans(plan);
+  prunePlanToVisibleDays(plan);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(plan));
 }
 
@@ -150,7 +265,7 @@ function hasMeals(dayPlan) {
 }
 
 function hasAnyPlanData(plan) {
-  return DAYS.some((day) => {
+  return getDataDayKeys(plan).some((day) => {
     const dayPlan = plan[day];
     return MEAL_KEYS.some((mealKey) => {
       const meal = dayPlan?.[mealKey];
@@ -191,6 +306,11 @@ function saveSupabaseSettings(settings) {
     key: settings.key || ""
   };
   localStorage.setItem(SUPABASE_SETTINGS_KEY, JSON.stringify(normalized));
+}
+
+function isSupabaseConfigured() {
+  const settings = loadSupabaseSettings();
+  return Boolean(settings.url && settings.key && window.supabase);
 }
 
 function populateSupabaseSettings() {
@@ -311,10 +431,7 @@ function getDaySummary(dayPlan) {
 }
 
 function populateEditor(day, plan) {
-  const weekDates = getWeekDates();
-  const dayIndex = DAYS.indexOf(day);
-  const selectedDate = weekDates[dayIndex];
-  document.getElementById("editorTitle").textContent = `${day} ${selectedDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`;
+  document.getElementById("editorTitle").textContent = getDisplayDayLabel(day);
 
   MEAL_KEYS.forEach((mealKey) => {
     const meal = normalizeMeal(plan[mealKey]);
@@ -361,7 +478,7 @@ function populateEditor(day, plan) {
 function getShoppingList(plan) {
   const sections = [];
 
-  DAYS.forEach((day) => {
+  getVisibleDayKeys(plan).forEach((day) => {
     const dayPlan = plan[day];
     MEAL_KEYS.forEach((mealKey) => {
       const meal = dayPlan?.[mealKey];
@@ -374,7 +491,7 @@ function getShoppingList(plan) {
 
       if (!ingredientLines.length) return;
 
-      const title = `${day} - ${mealKey.charAt(0).toUpperCase() + mealKey.slice(1)}`;
+      const title = `${getDisplayDayLabel(day)} - ${mealKey.charAt(0).toUpperCase() + mealKey.slice(1)}`;
       sections.push({ title, items: ingredientLines });
     });
   });
@@ -403,9 +520,8 @@ function renderShoppingList() {
 function renderOverview(plan, selectedDay) {
   const overview = document.getElementById("overview");
   overview.innerHTML = "";
-  const weekDates = getWeekDates();
 
-  DAYS.forEach((day, index) => {
+  getVisibleDayKeys(plan).forEach((day) => {
     const card = document.createElement("button");
     card.type = "button";
     card.className = `day-card${selectedDay === day ? " selected" : ""}`;
@@ -415,7 +531,7 @@ function renderOverview(plan, selectedDay) {
     const statusClass = hasMeals(dayPlan) ? "green" : "red";
     const summary = getDaySummary(dayPlan);
 
-    const dateLabel = formatDayLabel(day, weekDates[index]);
+    const dateLabel = getDisplayDayLabel(day);
 
     card.innerHTML = `
       <div class="day-row">
@@ -430,9 +546,15 @@ function renderOverview(plan, selectedDay) {
 }
 
 let state = loadPlan();
-let selectedDay = DAYS[0];
+let selectedDay = getVisibleDayKeys(state)[0];
 
 function renderApp() {
+  ensureVisibleDayPlans(state);
+  prunePlanToVisibleDays(state);
+  const visibleDays = getVisibleDayKeys(state);
+  if (!visibleDays.includes(selectedDay)) {
+    selectedDay = visibleDays[0];
+  }
   renderOverview(state, selectedDay);
   populateEditor(selectedDay, state[selectedDay]);
   renderShoppingList();
@@ -480,7 +602,7 @@ function handleEditorInput(event) {
   const field = event.target.dataset.field;
   const currentMeal = state[selectedDay][mealKey];
 
-  if (!currentMeal[courseKey]) {
+  if ((field === "name" || field === "notes") && !currentMeal[courseKey]) {
     currentMeal[courseKey] = createCourseEntry();
   }
 
@@ -503,11 +625,7 @@ function handleEditorInput(event) {
 }
 
 function clearDay() {
-  state[selectedDay] = {
-    breakfast: createMealEntry(),
-    lunch: createMealEntry(),
-    tea: createMealEntry()
-  };
+  state[selectedDay] = createDayPlan();
   savePlan(state);
   renderApp();
   syncToSupabase();
@@ -515,6 +633,17 @@ function clearDay() {
 
 function clearWeek() {
   state = createEmptyPlan();
+  selectedDay = getVisibleDayKeys(state)[0];
+  savePlan(state);
+  renderApp();
+  syncToSupabase();
+}
+
+function addAnotherDay() {
+  setExtraDays(state, getExtraDays(state) + 1);
+  ensureVisibleDayPlans(state);
+  const visibleDays = getVisibleDayKeys(state);
+  selectedDay = visibleDays[visibleDays.length - 1];
   savePlan(state);
   renderApp();
   syncToSupabase();
@@ -528,6 +657,7 @@ function attachEvents() {
 
   document.getElementById("clearDayButton").addEventListener("click", clearDay);
   document.getElementById("clearWeekButton").addEventListener("click", clearWeek);
+  document.getElementById("addAnotherDayButton").addEventListener("click", addAnotherDay);
   document.getElementById("connectSupabaseButton").addEventListener("click", connectSupabase);
   document.getElementById("syncNowButton").addEventListener("click", () => {
     savePlan(state);
@@ -588,10 +718,28 @@ function attachEvents() {
   });
 }
 
+function scheduleDayRollover() {
+  const now = new Date();
+  const nextMidnight = new Date(now);
+  nextMidnight.setDate(now.getDate() + 1);
+  nextMidnight.setHours(0, 0, 0, 0);
+  const delay = Math.max(1000, nextMidnight.getTime() - now.getTime());
+
+  window.setTimeout(() => {
+    renderApp();
+    savePlan(state);
+    if (isSupabaseConfigured()) {
+      syncToSupabase();
+    }
+    scheduleDayRollover();
+  }, delay);
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   populateSupabaseSettings();
   attachEvents();
   renderApp();
+  scheduleDayRollover();
 });
 
 if ("serviceWorker" in navigator) {

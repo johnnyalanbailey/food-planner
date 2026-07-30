@@ -282,6 +282,10 @@ textarea {
   flex-wrap: wrap;
 }
 
+.overview-actions {
+  margin-top: 10px;
+}
+
 .sync-actions {
   margin-top: 10px;
 }
