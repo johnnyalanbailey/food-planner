@@ -147,6 +147,7 @@ function createMealEntry() {
     main: createCourseEntry(),
     starter: createCourseEntry("", "", false),
     dessert: createCourseEntry("", "", false),
+    eatingOut: false,
     ingredientsEnabled: false,
     ingredients: ""
   };
@@ -169,11 +170,12 @@ function createEmptyPlan() {
 function normalizeMeal(meal) {
   if (!meal) return createMealEntry();
 
-  if (meal.main || meal.starter || meal.dessert || meal.ingredients || meal.ingredientsEnabled) {
+  if (meal.main || meal.starter || meal.dessert || meal.ingredients || meal.ingredientsEnabled || meal.eatingOut) {
     return {
       main: meal.main ? createCourseEntry(meal.main.name || "", meal.main.notes || "", Boolean(meal.main.visible || meal.main.name || meal.main.notes)) : createCourseEntry(),
       starter: meal.starter ? createCourseEntry(meal.starter.name || "", meal.starter.notes || "", Boolean(meal.starter.visible || meal.starter.name || meal.starter.notes)) : createCourseEntry("", "", false),
       dessert: meal.dessert ? createCourseEntry(meal.dessert.name || "", meal.dessert.notes || "", Boolean(meal.dessert.visible || meal.dessert.name || meal.dessert.notes)) : createCourseEntry("", "", false),
+      eatingOut: Boolean(meal.eatingOut),
       ingredientsEnabled: Boolean(meal.ingredientsEnabled),
       ingredients: meal.ingredients || ""
     };
@@ -183,6 +185,7 @@ function normalizeMeal(meal) {
     main: createCourseEntry(meal.name || "", meal.notes || ""),
     starter: createCourseEntry(),
     dessert: createCourseEntry(),
+    eatingOut: false,
     ingredientsEnabled: false,
     ingredients: ""
   };
@@ -257,10 +260,21 @@ function savePlan(plan) {
 function hasMeals(dayPlan) {
   return MEAL_KEYS.some((mealKey) => {
     const meal = dayPlan[mealKey];
+    if (meal?.eatingOut) return true;
     return COURSE_KEYS.some((courseKey) => {
       const course = meal?.[courseKey];
       return course && course.name && course.name.trim() !== "";
     });
+  });
+}
+
+function isTeaComplete(dayPlan) {
+  const teaMeal = dayPlan?.tea;
+  if (!teaMeal) return false;
+  if (teaMeal.eatingOut) return true;
+  return COURSE_KEYS.some((courseKey) => {
+    const course = teaMeal?.[courseKey];
+    return Boolean(course?.name && course.name.trim() !== "");
   });
 }
 
@@ -272,7 +286,7 @@ function hasAnyPlanData(plan) {
       const hasMain = meal?.main?.name && meal.main.name.trim() !== "";
       const hasOptional = ["starter", "dessert"].some((courseKey) => meal?.[courseKey]?.name && meal[courseKey].name.trim() !== "");
       const hasIngredients = Boolean(meal?.ingredientsEnabled && meal.ingredients && meal.ingredients.trim() !== "");
-      return hasMain || hasOptional || hasIngredients;
+      return hasMain || hasOptional || hasIngredients || Boolean(meal?.eatingOut);
     });
   });
 }
@@ -414,6 +428,11 @@ function getDaySummary(dayPlan) {
 
   MEAL_KEYS.forEach((mealKey) => {
     const meal = dayPlan[mealKey];
+    if (meal?.eatingOut) {
+      plannedMeals.push(`${mealKey}: eating out`);
+      return;
+    }
+
     const courseEntries = COURSE_KEYS.filter((courseKey) => {
       const course = meal?.[courseKey];
       return course && course.name && course.name.trim() !== "";
@@ -451,6 +470,11 @@ function populateEditor(day, plan) {
     const ingredientsBlock = document.getElementById(`${mealKey}IngredientsBlock`);
     if (ingredientsBlock) {
       ingredientsBlock.hidden = !meal.ingredientsEnabled;
+    }
+
+    const eatingOutInput = document.getElementById(`${mealKey}EatingOut`);
+    if (eatingOutInput) {
+      eatingOutInput.checked = Boolean(meal.eatingOut);
     }
   });
 
@@ -528,7 +552,7 @@ function renderOverview(plan, selectedDay) {
     card.dataset.day = day;
 
     const dayPlan = plan[day];
-    const statusClass = hasMeals(dayPlan) ? "green" : "red";
+    const statusClass = isTeaComplete(dayPlan) ? "green" : "red";
     const summary = getDaySummary(dayPlan);
 
     const dateLabel = getDisplayDayLabel(day);
@@ -583,9 +607,11 @@ function saveCurrentDay() {
     const ingredientsInput = document.getElementById(`${mealKey}Ingredients`);
     const ingredientsBlock = document.getElementById(`${mealKey}IngredientsBlock`);
     const ingredientsEnabled = Boolean(ingredientsBlock && !ingredientsBlock.hidden);
+    const eatingOutInput = document.getElementById(`${mealKey}EatingOut`);
 
     dayPlan[mealKey].ingredientsEnabled = ingredientsEnabled;
     dayPlan[mealKey].ingredients = ingredientsInput ? ingredientsInput.value : "";
+    dayPlan[mealKey].eatingOut = Boolean(eatingOutInput?.checked);
   });
 
   savePlan(state);
@@ -612,6 +638,8 @@ function handleEditorInput(event) {
     currentMeal[courseKey].notes = event.target.value;
   } else if (field === "ingredients") {
     currentMeal.ingredients = event.target.value;
+  } else if (field === "eatingOut") {
+    currentMeal.eatingOut = Boolean(event.target.checked);
   }
 
   if (mealKey === "tea" && OPTIONAL_TEA_COURSES.includes(courseKey)) {

@@ -189,6 +189,19 @@ h1 {
   font-weight: 700;
 }
 
+.eating-out-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.eating-out-checkbox {
+  width: auto;
+  margin: 0;
+}
+
 .course-entry {
   border: 1px solid var(--border);
   border-radius: 12px;
