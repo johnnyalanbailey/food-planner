@@ -1,0 +1,317 @@
+:root {
+  color-scheme: light;
+  --bg: #f5f7ef;
+  --card: #ffffff;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --green: #2e7d32;
+  --red: #c62828;
+  --accent: #4caf50;
+  --border: #d8e0d0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  color: var(--text);
+  background: linear-gradient(180deg, #edf5e1 0%, var(--bg) 100%);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.app-shell {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 20px 16px 32px;
+}
+
+.hero {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.8rem;
+  color: var(--green);
+  font-weight: 700;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(1.8rem, 4vw, 2.3rem);
+}
+
+.subtitle {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+.install-note {
+  max-width: 320px;
+  color: var(--muted);
+  font-size: 0.95rem;
+  padding: 10px 12px;
+  background: #f2f8eb;
+  border-radius: 12px;
+}
+
+.layout {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.overview-card,
+.editor-card,
+.shopping-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+.section-heading {
+  margin-bottom: 14px;
+}
+
+.section-heading p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.overview-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.day-card {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  text-align: left;
+  background: #fbfdf7;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.day-card:hover,
+.day-card:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  outline: none;
+}
+
+.day-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.22);
+}
+
+.day-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.day-name {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.status-dot.green {
+  background: var(--green);
+}
+
+.status-dot.red {
+  background: var(--red);
+}
+
+.day-summary {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.planner-form {
+  display: grid;
+  gap: 14px;
+}
+
+.meal-block {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  background: #fbfdf7;
+  display: grid;
+  gap: 10px;
+}
+
+.meal-label {
+  display: block;
+  font-weight: 700;
+}
+
+.course-entry {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  background: var(--card);
+}
+
+.optional-course[hidden] {
+  display: none;
+}
+
+.course-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inline-button {
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: #f4fbf4;
+  color: var(--green);
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.course-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.course-label {
+  display: block;
+  font-weight: 600;
+  color: var(--green);
+}
+
+.text-button {
+  border: none;
+  background: none;
+  color: var(--red);
+  padding: 0;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--card);
+  color: var(--text);
+}
+
+textarea {
+  resize: vertical;
+  margin-top: 8px;
+  min-height: 54px;
+}
+
+.shopping-list {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fbfdf7;
+  min-height: 220px;
+  white-space: pre-wrap;
+}
+
+.shopping-list ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.ingredient-toggle-card {
+  margin-top: 4px;
+}
+
+.ingredient-block[hidden] {
+  display: none;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.primary-button,
+.secondary-button {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.primary-button {
+  background: var(--accent);
+  color: white;
+}
+
+.secondary-button {
+  background: #eef3e8;
+  color: var(--text);
+}
+
+@media (min-width: 760px) {
+  .layout {
+    grid-template-columns: 1.05fr 0.95fr;
+    align-items: start;
+  }
+
+  .overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+}

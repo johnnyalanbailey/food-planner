@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Food Planner icon">
+  <rect width="192" height="192" rx="36" fill="#2e7d32"/>
+  <rect x="32" y="48" width="128" height="96" rx="18" fill="#f5f7ef"/>
+  <path d="M52 78h88" stroke="#2e7d32" stroke-width="12" stroke-linecap="round"/>
+  <path d="M52 98h46" stroke="#4caf50" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="126" cy="98" r="18" fill="#4caf50"/>
+</svg>

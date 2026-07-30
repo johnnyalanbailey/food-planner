@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#2e7d32" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Food Planner" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icons/planner-icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icons/planner-icon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>Weekly Food Planner</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Weekly planner</p>
+          <h1>Food Planner</h1>
+          <p class="subtitle">Plan breakfast, lunch and tea for the week in one place.</p>
+        </div>
+        <div class="install-note">Add this to your Home Screen on iPhone for a quick app-like experience.</div>
+      </header>
+
+      <main class="layout">
+        <section class="overview-card">
+          <div class="section-heading">
+            <h2>Week overview</h2>
+            <p>Green means meals are planned. Red means the day is still empty.</p>
+          </div>
+          <div id="overview" class="overview-grid" aria-label="Weekly food overview"></div>
+        </section>
+
+        <section class="shopping-card">
+          <div class="section-heading">
+            <h2>Shopping list</h2>
+            <p>Ingredients from meals marked to include them are collected here.</p>
+          </div>
+          <div id="shoppingList" class="shopping-list"></div>
+        </section>
+
+        <section class="editor-card">
+          <div class="section-heading">
+            <h2 id="editorTitle">Monday</h2>
+            <p>Choose a day and add a main, starter or dessert for breakfast, lunch and tea.</p>
+          </div>
+
+          <form id="plannerForm" class="planner-form">
+            <div class="meal-block" data-meal="breakfast">
+              <label class="meal-label" for="breakfastMainName">Breakfast</label>
+              <div class="course-entry">
+                <label class="course-label" for="breakfastMainName">Main</label>
+                <input id="breakfastMainName" data-meal="breakfast" data-course="main" data-field="name" type="text" placeholder="Main dish" />
+                <textarea id="breakfastMainNotes" data-meal="breakfast" data-course="main" data-field="notes" rows="2" placeholder="Notes"></textarea>
+              </div>
+
+              <div class="course-entry ingredient-toggle-card">
+                <div class="course-header">
+                  <label class="course-label">Ingredients</label>
+                  <button type="button" class="text-button" data-action="toggle-ingredients" data-meal="breakfast">Add ingredients</button>
+                </div>
+                <div id="breakfastIngredientsBlock" class="ingredient-block" hidden>
+                  <textarea id="breakfastIngredients" data-meal="breakfast" data-field="ingredients" rows="4" placeholder="Add ingredients, one per line"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="meal-block" data-meal="lunch">
+              <label class="meal-label" for="lunchMainName">Lunch</label>
+              <div class="course-entry">
+                <label class="course-label" for="lunchMainName">Main</label>
+                <input id="lunchMainName" data-meal="lunch" data-course="main" data-field="name" type="text" placeholder="Main dish" />
+                <textarea id="lunchMainNotes" data-meal="lunch" data-course="main" data-field="notes" rows="2" placeholder="Notes"></textarea>
+              </div>
+
+              <div class="course-actions">
+                <button type="button" class="inline-button" data-action="show-course" data-meal="lunch" data-course="starter">Add starter</button>
+                <button type="button" class="inline-button" data-action="show-course" data-meal="lunch" data-course="dessert">Add dessert</button>
+              </div>
+
+              <div class="course-entry ingredient-toggle-card">
+                <div class="course-header">
+                  <label class="course-label">Ingredients</label>
+                  <button type="button" class="text-button" data-action="toggle-ingredients" data-meal="lunch">Add ingredients</button>
+                </div>
+                <div id="lunchIngredientsBlock" class="ingredient-block" hidden>
+                  <textarea id="lunchIngredients" data-meal="lunch" data-field="ingredients" rows="4" placeholder="Add ingredients, one per line"></textarea>
+                </div>
+              </div>
+
+              <div id="lunchStarterBlock" class="course-entry optional-course" hidden>
+                <div class="course-header">
+                  <label class="course-label" for="lunchStarterName">Starter</label>
+                  <button type="button" class="text-button" data-action="hide-course" data-meal="lunch" data-course="starter">Remove</button>
+                </div>
+                <input id="lunchStarterName" data-meal="lunch" data-course="starter" data-field="name" type="text" placeholder="Starter" />
+                <textarea id="lunchStarterNotes" data-meal="lunch" data-course="starter" data-field="notes" rows="2" placeholder="Notes"></textarea>
+              </div>
+
+              <div id="lunchDessertBlock" class="course-entry optional-course" hidden>
+                <div class="course-header">
+                  <label class="course-label" for="lunchDessertName">Dessert</label>
+                  <button type="button" class="text-button" data-action="hide-course" data-meal="lunch" data-course="dessert">Remove</button>
+                </div>
+                <input id="lunchDessertName" data-meal="lunch" data-course="dessert" data-field="name" type="text" placeholder="Dessert" />
+                <textarea id="lunchDessertNotes" data-meal="lunch" data-course="dessert" data-field="notes" rows="2" placeholder="Notes"></textarea>
+              </div>
+            </div>
+
+            <div class="meal-block" data-meal="tea">
+              <label class="meal-label" for="teaMainName">Tea</label>
+              <div class="course-entry">
+                <label class="course-label" for="teaMainName">Main</label>
+                <input id="teaMainName" data-meal="tea" data-course="main" data-field="name" type="text" placeholder="Main dish" />
+                <textarea id="teaMainNotes" data-meal="tea" data-course="main" data-field="notes" rows="2" placeholder="Notes"></textarea>
+              </div>
+
+              <div class="course-actions">
+                <button type="button" class="inline-button" data-action="show-course" data-meal="tea" data-course="starter">Add starter</button>
+                <button type="button" class="inline-button" data-action="show-course" data-meal="tea" data-course="dessert">Add dessert</button>
+              </div>
+
+              <div class="course-entry ingredient-toggle-card">
+                <div class="course-header">
+                  <label class="course-label">Ingredients</label>
+                  <button type="button" class="text-button" data-action="toggle-ingredients" data-meal="tea">Add ingredients</button>
+                </div>
+                <div id="teaIngredientsBlock" class="ingredient-block" hidden>
+                  <textarea id="teaIngredients" data-meal="tea" data-field="ingredients" rows="4" placeholder="Add ingredients, one per line"></textarea>
+                </div>
+              </div>
+              <div id="teaStarterBlock" class="course-entry optional-course" hidden>
+                <div class="course-header">
+                  <label class="course-label" for="teaStarterName">Starter</label>
+                  <button type="button" class="text-button" data-action="hide-course" data-meal="tea" data-course="starter">Remove</button>
+                </div>
+                <input id="teaStarterName" data-meal="tea" data-course="starter" data-field="name" type="text" placeholder="Starter" />
+                <textarea id="teaStarterNotes" data-meal="tea" data-course="starter" data-field="notes" rows="2" placeholder="Notes"></textarea>
+              </div>
+
+              <div id="teaDessertBlock" class="course-entry optional-course" hidden>
+                <div class="course-header">
+                  <label class="course-label" for="teaDessertName">Dessert</label>
+                  <button type="button" class="text-button" data-action="hide-course" data-meal="tea" data-course="dessert">Remove</button>
+                </div>
+                <input id="teaDessertName" data-meal="tea" data-course="dessert" data-field="name" type="text" placeholder="Dessert" />
+                <textarea id="teaDessertNotes" data-meal="tea" data-course="dessert" data-field="notes" rows="2" placeholder="Notes"></textarea>
+              </div>
+            </div>
+
+            <div class="editor-actions">
+              <button type="submit" class="primary-button">Save day</button>
+              <button type="button" id="clearDayButton" class="secondary-button">Clear day</button>
+              <button type="button" id="clearWeekButton" class="secondary-button">Clear week</button>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

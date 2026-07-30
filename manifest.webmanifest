@@ -1,0 +1,17 @@
+{
+  "name": "Weekly Food Planner",
+  "short_name": "Food Planner",
+  "description": "Plan breakfast, lunch and tea for each day of the week.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f7ef",
+  "theme_color": "#2e7d32",
+  "icons": [
+    {
+      "src": "icons/planner-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
